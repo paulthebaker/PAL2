@@ -43,7 +43,6 @@ def compute_snr_mark9(x, Nvec, Tmat, Qamp, Uinds, Sigma):
     Compute optimal SNR for mark9
     """
 
-
     # white noise term
     Nx = python_block_shermor_0D(x, Nvec, Qamp, Uinds)
     xNx = np.dot(x, Nx)
@@ -139,7 +138,6 @@ def innerProduct_rr(x, y, Nvec, Tmat, Sigma, TNx=None, TNy=None):
         TNx = np.dot(Tmat.T, Nx)
         TNy = np.dot(Tmat.T, Ny)
 
-
     cf = sl.cho_factor(Sigma)
     SigmaTNy = sl.cho_solve(cf, TNy)
 
@@ -214,7 +212,6 @@ def feStat(psr, gwtheta, gwphi, f0):
         A[2,:] = fcross/f0**(1./3.) * np.sin(2*np.pi*f0*p.toas)
         A[3,:] = fcross/f0**(1./3.) * np.cos(2*np.pi*f0*p.toas)
 
-
         N += np.array([np.dot(A[0,:], np.dot(p.invCov, p.res)), \
                         np.dot(A[1,:], np.dot(p.invCov, p.res)), \
                         np.dot(A[2,:], np.dot(p.invCov, p.res)), \
@@ -227,7 +224,6 @@ def feStat(psr, gwtheta, gwphi, f0):
 
     # Fe-statistic
     return 0.5 * np.dot(N, np.dot(Minv, N))
-
 
 
 def createAntennaPatternFuncs(psr, gwtheta, gwphi):
@@ -373,7 +369,6 @@ def DipoleAntennaPattern(rajp, decjp, raj, decj, pol):
             np.sin(pol) * np.dot(mhat, p)
 
 
-
 def createResiduals(psr, gwtheta, gwphi, mc, dist, fgw, phase0, psi, inc, pdist=None, \
                         pphase=None, psrTerm=True, evolve=False, phase_approx=True):
     """
@@ -469,7 +464,6 @@ def createResiduals(psr, gwtheta, gwphi, mc, dist, fgw, phase0, psi, inc, pdist=
     # now define time dependent amplitudes
     alpha = mc**(5./3.)/(dist*omega**(1./3.))
     alpha_p = mc**(5./3.)/(dist*omega_p**(1./3.))
-
 
     # define rplus and rcross
     rplus = alpha*(At*np.cos(2*psi)-Bt*np.sin(2*psi))
@@ -788,7 +782,6 @@ def constructShapelet(times, t0, q, amps):
     return hval
 
 
-
 def computeLuminosityDistance(z):
     """
 
@@ -986,7 +979,7 @@ def constructSEkernel(times, lam, amp):
     tm = createTimeLags(times, times)
     K = amp**2 * np.exp(-tm**2/2/lam**2)
 
-    return K    
+    return K
 
 
 def exploderMatrixNoSingles(times, flags, dt=10):
@@ -1032,7 +1025,6 @@ def exploderMatrix_slow(toas, freqs=None, dt=1200, flags=None):
     :return: exploder matrix and daily averaged toas
 
     """
-
 
     processed = np.array([0]*len(toas), dtype=np.bool)  # No toas processed yet
     U = np.zeros((len(toas), 0))
@@ -1127,7 +1119,6 @@ def DMXDesignMatrix(toas, freqs, dt=1200):
 
     """
 
-
     processed = np.array([0]*len(toas), dtype=np.bool)  # No toas processed yet
     M = np.zeros((len(toas), 0))
 
@@ -1192,7 +1183,6 @@ def createGHmatrix(toa, err, res, G, fidelity, Amp = None):
     Multiplies with "G" matrix to create the "GH" matrix, which can simply replace
     the "G" matrix in all likelihoods which are marginalised over the timing-model
 
-
     :param toa: times-of-arrival (in seconds) for psr
     :param err: error bars on toas (in seconds)
     :param res: residuals (in seconds) of psr
@@ -1246,7 +1236,6 @@ def createGHmatrix(toa, err, res, G, fidelity, Amp = None):
     return np.dot(G,H)
 
 
-
 def createRedNoiseCovarianceMatrix(tm, Amp, gam, fH=None, fast=False):
     """
     Create red noise covariance matrix. If fH is None, then
@@ -1271,7 +1260,6 @@ def createRedNoiseCovarianceMatrix(tm, Amp, gam, fH=None, fast=False):
     # compute high frequency cutoff
     Tspan = tm.max() * s2yr
     fL = 1/(10*Tspan)
-
 
     if fH is None:
 
@@ -1580,7 +1568,7 @@ def computeNormalizedCovarianceMatrix(cov):
         for jj in range(ndim):
             cnorm[ii,jj] = cov[ii,jj]/np.sqrt(cov[ii,ii]*cov[jj,jj])
 
-    return cnorm 
+    return cnorm
 
 
 def createfourierdesignmatrix(t, nmodes, freq=False, Tspan=None,
@@ -1646,7 +1634,6 @@ def singlefourierdesignmatrix(t, freqs):
 
     N = len(t)
     F = np.zeros((N, 2*len(freqs)))
-
 
     for ii in range(len(freqs)):
         F[:,2*ii] = np.cos(2*np.pi*freqs[ii]*t)
@@ -1987,8 +1974,6 @@ def PhysPrior(clm,harm_sky_vals):
         return 0
 
 
-
-
 def fixNoiseValues(ptasignals, vals, pars, bvary=False, verbose=True):
     """
     Use fixed noise values to read into 
@@ -2260,7 +2245,6 @@ def quantize_split(times, flags, dt=1.0, calci=False):
     return rv
 
 
-
 def argsortTOAs(toas, flags, which=None, dt=1.0):
     """
     Return the sort, and the inverse sort permutations of the TOAs, for the
@@ -2494,7 +2478,6 @@ def quantreduce(U, eat, flags, calci=False):
     return rv
 
 
-
 def signalResponse_fast(ptheta_a, pphi_a, gwtheta_a, gwphi_a):
     """
     Create the signal response matrix FAST
@@ -2585,7 +2568,6 @@ def createSignalResponse_pol(pphi, ptheta, gwphi, gwtheta, plus=True, norm=False
     return Fsig
 
 
-
 def almFromClm(clm):
     """
     Given an array of clm values, return an array of complex alm valuex
@@ -2648,7 +2630,6 @@ def clmFromAlm(alm):
             clmindex += 1
     
     return clm
-
 
 
 def mapFromClm_fast(clm, nside):
@@ -2742,7 +2723,6 @@ def clmFromMap(h, lmax):
     return clm * 4 * np.pi / npixels
 
 
-
 def getCov(sh00, nside, F_e):
     """
     Given a vector of clm values, construct the covariance matrix
@@ -2804,8 +2784,6 @@ def CorrBasis(psr_locs, nside=32, direction='origin'):
         basis.append(getCov(sh00[ii], nside, F_e[:,2*ii:2*ii+2]))
 
     return basis
-
-
 
 
 
@@ -3183,8 +3161,6 @@ def compute_eccentric_residuals(psr, gwtheta, gwphi, mc,
                 print('F0 = {0}, F1 = {1}, delta f = {2}'.format(Fc0, Fc1, 1/Tobs))
                 return np.ones(len(p.toas)) * np.nan
 
-
-        
         # get gammadot for earth term
         gammadot = get_gammadot(F, mc, q, e0)
 
