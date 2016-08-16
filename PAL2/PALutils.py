@@ -161,22 +161,21 @@ def fpStat(psr, f0):
     npsr = len(psr)
 
     # define N vectors from Ellis et al, 2012 N_i=(x|A_i) for each pulsar
-    N = np.zeros(2)
     M = np.zeros((2, 2))
     for ii,p in enumerate(psr):
 
         # Define A vector
-        A = np.zeros((2, p.ntoa))
-        A[0,:] = 1./f0**(1./3.) * np.sin(2*np.pi*f0*p.toas)
-        A[1,:] = 1./f0**(1./3.) * np.cos(2*np.pi*f0*p.toas)
+        A = 1./f0**(1./3.) * np.array([ np.sin(2.*np.pi*f0*p.toas),
+                                        np.cos(2.*np.pi*f0*p.toas) ])
 
-        N = np.array([np.dot(A[0,:], np.dot(p.invCov, p.residuals)), \
-                      np.dot(A[1,:], np.dot(p.invCov, p.residuals))]) 
+        # numpy broadcasts A onto dot correctly: N is 2xNtoa
+        #   each row of A is dotted individually
+        N = np.dot(A, np.dot(p.invCov, p.residuals))
         
         # define M matrix M_ij=(A_i|A_j)
-        for jj in range(2):
-            for kk in range(2):
-                M[jj,kk] = np.dot(A[jj,:], np.dot(p.invCov, A[kk,:]))
+        for jj,AA in enumerate(A):
+            for kk,AA in enumerate(A):
+                M[jj,kk] = np.dot(AA, np.dot(p.invCov, AA))
         
         # take inverse of M
         Minv = np.linalg.inv(M)
@@ -206,16 +205,14 @@ def feStat(psr, gwtheta, gwphi, f0):
         fplus, fcross, cosMu = createAntennaPatternFuncs(p, gwtheta, gwphi)
 
         # define A
-        A = np.zeros((4, len(p.toas)))
-        A[0,:] = fplus/f0**(1./3.) * np.sin(2*np.pi*f0*p.toas)
-        A[1,:] = fplus/f0**(1./3.) * np.cos(2*np.pi*f0*p.toas)
-        A[2,:] = fcross/f0**(1./3.) * np.sin(2*np.pi*f0*p.toas)
-        A[3,:] = fcross/f0**(1./3.) * np.cos(2*np.pi*f0*p.toas)
+        A = 1./f0**(1./3.) * np.array([ fplus * np.sin(2.*np.pi*f0*p.toas),
+                                        fplus * np.cos(2.*np.pi*f0*p.toas),
+                                        fcross * np.sin(2.*np.pi*f0*p.toas),
+                                        fcross * np.cos(2.*np.pi*f0*p.toas) ])
 
-        N += np.array([np.dot(A[0,:], np.dot(p.invCov, p.res)), \
-                        np.dot(A[1,:], np.dot(p.invCov, p.res)), \
-                        np.dot(A[2,:], np.dot(p.invCov, p.res)), \
-                        np.dot(A[3,:], np.dot(p.invCov, p.res))]) 
+        # numpy broadcasts A onto dot correctly: N is 4xNtoa
+        #   each row of A is dotted individually
+        N += np.dot(A, np.dot(p.invCov, p.res))
 
         M += np.dot(A, np.dot(p.invCov, A.T))
 
