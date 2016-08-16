@@ -1453,20 +1453,18 @@ def computeORF(psr):
     k = 0
     npsr = len(psr)
     ORF = np.zeros(npsr*(npsr-1)/2.)
-    phati = np.zeros(3)
-    phatj = np.zeros(3)
-    for ll in xrange(0, npsr):
-        phati[0] = np.cos(psr[ll].phi) * np.sin(psr[ll].theta)
-        phati[1] = np.sin(psr[ll].phi) * np.sin(psr[ll].theta)
-        phati[2] = np.cos(psr[ll].theta)
 
-        for kk in xrange(ll+1, npsr):
-            phatj[0] = np.cos(psr[kk].phi) * np.sin(psr[kk].theta)
-            phatj[1] = np.sin(psr[kk].phi) * np.sin(psr[kk].theta)
-            phatj[2] = np.cos(psr[kk].theta)
-
-            xip = (1.-np.sum(phati*phatj)) / 2.
-            ORF[k] = 3.*( 1./3. + xip * ( np.log(xip) -1./6.) )
+    theta = np.array([psr[x].theta for x in range(npsr)]) # array of thetas
+    phi = np.array([psr[x].phi for x in range(npsr)]) # array of phis
+    
+    p_hat = np.array([ np.cos(phi) * np.sin(theta),
+                       np.sin(phi) * np.sin(theta),
+                       np.cos(theta) ]).T # array of unit vectors
+    
+    for ii, pI in enumerate(p_hat):
+        for jj, pJ in enumerate(p_hat[ii+1:]):
+            xip = 0.5*(1. - np.dot(pI, pJ))
+            ORF[k] =  1. + 3.*xip*np.log(xip) - 0.5*xip
             k += 1
 
     return ORF
@@ -1486,23 +1484,20 @@ def computeORFMatrix(psr):
     # begin loop over all pulsar pairs and calculate ORF
     npsr = len(psr)
     ORF = np.zeros((npsr, npsr))
-    phati = np.zeros(3)
-    phatj = np.zeros(3)
-    for ll in xrange(0, npsr):
-        phati[0] = np.cos(psr[ll].phi) * np.sin(psr[ll].theta)
-        phati[1] = np.sin(psr[ll].phi) * np.sin(psr[ll].theta)
-        phati[2] = np.cos(psr[ll].theta)
-
-        for kk in xrange(0, npsr):
-            phatj[0] = np.cos(psr[kk].phi) * np.sin(psr[kk].theta)
-            phatj[1] = np.sin(psr[kk].phi) * np.sin(psr[kk].theta)
-            phatj[2] = np.cos(psr[kk].theta)
-            
-            if ll != kk:
-                xip = (1.-np.sum(phati*phatj)) / 2.
-                ORF[ll, kk] = 3.*( 1./3. + xip * ( np.log(xip) -1./6.) )
+    theta = np.array([psr[x].theta for x in range(npsr)]) # array of thetas
+    phi = np.array([psr[x].phi for x in range(npsr)]) # array of phis
+    
+    p_hat = np.array([ np.cos(phi) * np.sin(theta),
+                       np.sin(phi) * np.sin(theta),
+                       np.cos(theta) ]).T # array of unit vectors
+    
+    for ii, pI in enumerate(p_hat):
+        for jj, pJ in enumerate(p_hat):
+            if ii==jj:
+                ORF[ii,jj] = 2.
             else:
-                ORF[ll, kk] = 2.0
+                xip = 0.5*(1. - np.dot(pI, pJ))
+                ORF[ii,jj] =  1. + 3.*xip*np.log(xip) - 0.5*xip
 
     return ORF
 
