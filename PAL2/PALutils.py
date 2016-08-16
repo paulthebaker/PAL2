@@ -178,7 +178,7 @@ def fpStat(psr, f0):
                 M[jj,kk] = np.dot(AA, np.dot(p.invCov, AA))
 
         # take inverse of M
-        Minv = np.linalg.inv(M)
+        Minv = sl.inv(M)
         fstat += 0.5 * np.dot(N, np.dot(Minv, N))
 
     # return F-statistic
@@ -217,7 +217,7 @@ def feStat(psr, gwtheta, gwphi, f0):
         M += np.dot(A, np.dot(p.invCov, A.T))
 
     # inverse of M
-    Minv = np.linalg.pinv(M)
+    Minv = sl.pinv(M)
 
     # Fe-statistic
     return 0.5 * np.dot(N, np.dot(Minv, N))
@@ -1700,7 +1700,7 @@ def createGWB(psr, Amp, gam, DM=False, noCorr=False, seed=None, turnover=False, 
     Nf=len(f)
 
     # Use Cholesky transform to take 'square root' of ORF
-    M=np.linalg.cholesky(ORF)
+    M=sl.cholesky(ORF)
 
     # Create random frequency series from zero mean, unit variance, Gaussian distributions
     w = np.zeros((Npulsars, Nf), complex)
@@ -1831,7 +1831,7 @@ def createGWB_clean(psr, Amp, gam, noCorr=False, seed=None, turnover=False,
     Nf = len(f)
 
     # Use Cholesky transform to take 'square root' of ORF
-    M = np.linalg.cholesky(ORF)
+    M = sl.cholesky(ORF)
 
     # Create random frequency series from zero mean, unit variance, Gaussian distributions
     w = np.zeros((Npulsars, Nf), complex)
