@@ -1826,7 +1826,7 @@ def createGWB_clean(psr, Amp, gam, noCorr=False, seed=None, turnover=False,
 
     # Define frequencies spanning from DC to Nyquist.
     # This is a vector spanning these frequencies in increments of 1/(dur*howml).
-    f=np.arange(0, 1/(2*dt), 1/(dur*howml))
+    f = np.arange(0, 1/(2*dt), 1/(dur*howml))
     f[0] = f[1] # avoid divide by 0 warning
     Nf = len(f)
 
@@ -1834,9 +1834,7 @@ def createGWB_clean(psr, Amp, gam, noCorr=False, seed=None, turnover=False,
     M = sl.cholesky(ORF)
 
     # Create random frequency series from zero mean, unit variance, Gaussian distributions
-    w = np.zeros((Npulsars, Nf), complex)
-    for ll in range(Npulsars):
-        w[ll,:] = np.random.randn(Nf) + 1j*np.random.randn(Nf)
+    w = np.random.randn(Npulsars, Nf) + 1j*np.random.randn(Npulsasrs, Nf)
 
     # strain amplitude
     f1yr = 1/3.16e7
@@ -1849,18 +1847,11 @@ def createGWB_clean(psr, Amp, gam, noCorr=False, seed=None, turnover=False,
     C = 1 / 96 / np.pi**2 * hcf**2 / f**3 * dur * howml
 
     ### injection residuals in the frequency domain
-    Res_f = np.dot(M, w)
-    for ll in range(Npulsars):
-        Res_f[ll] = Res_f[ll] * C**(0.5)    # rescale by frequency dependent factor
-        Res_f[ll,0] = 0			    # set DC bin to zero to avoid infinities
-        Res_f[ll,-1] = 0		    # set Nyquist bin to zero also
+    Res_f = np.dot(M,w) * np.sqrt(C)
+    Res_f[:,0] = 0                          # set DC bin to zero to avoid infinities
+    Res_f[:,-1] = 0                         # set Nyquist bin to zero also
 
-    # Now fill in bins after Nyquist (for fft data packing) and take inverse FT
-    Res_f2 = np.zeros((Npulsars, 2*Nf-2), complex)
-    Res_t = np.zeros((Npulsars, 2*Nf-2))
-    Res_f2[:,0:Nf] = Res_f[:,0:Nf]
-    Res_f2[:, Nf:(2*Nf-2)] = np.conj(Res_f[:,(Nf-2):0:-1])
-    Res_t = np.real(np.fft.ifft(Res_f2)/dt)
+    Res_t = np.fft.irfft(Res_f/dt)          # use numpy's rfft for real time series
 
     # shorten data and interpolate onto TOAs
     Res = np.zeros((Npulsars, npts))
