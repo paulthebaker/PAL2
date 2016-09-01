@@ -41,6 +41,7 @@ Piccard.
 
 """
 
+f1yr = 1./(3600.*24.*365.25)
 
 class PTAmodels(object):
 
@@ -3827,7 +3828,6 @@ class PTAmodels(object):
 
                 # psd for power law
                 freqpy = self.psr[psrind].Ffreqs
-                f1yr = 1 / 3.16e7
                 psd = Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) * \
                         freqpy ** (-gamma) / self.psr[psrind].Tmax
 
@@ -3988,7 +3988,6 @@ class PTAmodels(object):
                     gamma = sparameters[1]
 
                     freqpy = p.Ffreqs
-                    f1yr = 1 / 3.16e7
                     #f1yr = 1/self.psr[psrind].Tmax
                     rho = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                    freqpy ** (-gamma) / self.psr[psrind].Tmax)
@@ -4413,7 +4412,6 @@ class PTAmodels(object):
                 self.corrmat = self.compute_ss_corrmat(gwtheta, gwphi, gwpsi)
                 
                 freqpy = self.gwfreqs
-                f1yr = 1 / 3.16e7
                 hcf_plus = A_plus * (freqpy / f1yr) ** ((3 - gamma_plus) / 2) / \
                     (1 + (f0_plus / freqpy) ** kappa_plus) ** 0.5
                 hcf_cross = A_cross * (freqpy / f1yr) ** ((3 - gamma_cross) / 2) / \
@@ -4451,7 +4449,6 @@ class PTAmodels(object):
                 beta = sparameters[4]
 
                 freqpy = self.psr[psrind].Ffreqs
-                f1yr = 1 / 3.16e7
                 hcf = Amp * (freqpy / f1yr) ** ((3 - gamma) / 2) / \
                     (1 + (f0 / freqpy) ** kappa) ** beta
                 pcdoubled = np.log10(
@@ -4470,7 +4467,6 @@ class PTAmodels(object):
                     gamma = sparameters[1]
 
                     freqpy = self.psr[psrind].Ffreqs
-                    f1yr = 1 / 3.16e7
                     #f1yr = 1 / self.psr[psrind].Tmax
                     pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                          freqpy ** (-gamma) / self.psr[psrind].Tmax)
@@ -4495,7 +4491,6 @@ class PTAmodels(object):
                     Amp = 10 ** sparameters[0]
                     gamma = sparameters[1]
 
-                    f1yr = 1 / 3.16e7
                     rho = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                    fgw ** (-gamma) / self.psr[psrind].Tmax)
                     # rho = np.log10(Amp**2/12/np.pi**2 * f1yr**(gamma-3) * \
@@ -4515,7 +4510,6 @@ class PTAmodels(object):
                     Amp = 10 ** sparameters[0]
                     gamma = sparameters[1]
 
-                    f1yr = 1 / 3.16e7
                     rho = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                    fgw ** (-gamma) / self.psr[psrind].Tmax)
 
@@ -4533,7 +4527,6 @@ class PTAmodels(object):
                     Amp = 10 ** sparameters[0]
                     gamma = sparameters[1]
 
-                    f1yr = 1 / 3.16e7
                     rho = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                    fgw ** (-gamma) / self.psr[psrind].Tmax)
 
@@ -4548,7 +4541,6 @@ class PTAmodels(object):
                     gamma = sparameters[1]
 
                     freqpy = self.psr[psrind].Ffreqs
-                    f1yr = 1 / 3.16e7
                     pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                          freqpy ** (-gamma) / self.psr[psrind].Tmax)
 
@@ -4569,7 +4561,6 @@ class PTAmodels(object):
                 beta = sparameters[4]
 
                 freqpy = self.gwfreqs
-                f1yr = 1 / 3.16e7
                 hcf = Amp * (freqpy / f1yr) ** ((3 - gamma) / 2) / \
                     (1 + (f0 / freqpy) ** kappa) ** beta
                 rho = np.log10(
@@ -4600,7 +4591,6 @@ class PTAmodels(object):
                     gamma = sparameters[1]
 
                     freqpy = self.psr[psrind].Fdmfreqs
-                    f1yr = 1 / 3.16e7
                     pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                          freqpy ** (-gamma) / self.psr[psrind].Tmax)
 
@@ -4618,7 +4608,6 @@ class PTAmodels(object):
                     gamma = sparameters[1]
 
                     freqpy = self.psr[psrind].Fdmfreqs
-                    f1yr = 1 / 3.16e7
                     pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                          freqpy ** (-gamma) /self.psr[psrind].Tmax)
 
@@ -4687,7 +4676,6 @@ class PTAmodels(object):
                 gamma = sparameters[3]
 
                 freqpy = self.psr[psrind].Ffreqs
-                f1yr = 1 / 3.16e7
                 pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                      freqpy ** (-gamma) / self.psr[psrind].Tmax)
 
@@ -4708,7 +4696,6 @@ class PTAmodels(object):
                 gamma = sparameters[1]
 
                 freqpy = self.psr[psrind].Fextfreqs
-                f1yr = 1 / 3.16e7
                 Tmax = 1 / self.psr[psrind].Fextfreqs[0]
                 pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                      freqpy ** (-gamma) / Tmax)
@@ -4730,7 +4717,6 @@ class PTAmodels(object):
                 gamma = sparameters[1]
 
                 freqpy = self.psr[psrind].Fscatfreqs
-                f1yr = 1 / 3.16e7
                 Tmax = self.psr[psrind].Tmax
                 pcdoubled = np.log10(Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) *
                                      freqpy ** (-gamma) / Tmax)
@@ -5822,7 +5808,6 @@ class PTAmodels(object):
                 Amp = 1
                 gamma = 13 / 3
 
-                f1yr = 1 / 3.16e7
                 pcdoubled = Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) * \
                     fgw ** (-gamma) / np.sqrt(self.psr[ii].Tmax
                                               * self.psr[jj].Tmax)
@@ -5959,7 +5944,6 @@ class PTAmodels(object):
                 Amp = 1
                 gamma = 13 / 3
 
-                f1yr = 1 / 3.16e7
                 pcdoubled = Amp ** 2 / 12 / np.pi ** 2 * f1yr ** (gamma - 3) * \
                     fgw ** (-gamma) / \
                     np.sqrt(self.psr[ii].Tmax * self.psr[jj].Tmax)
@@ -7924,7 +7908,6 @@ class PTAmodels(object):
                     fb = 10**sparameters[2]
                     kappa = sparameters[3]
                     ft = 1 / self.psr[0].Tmax
-                    f1yr = 1 / 3.16e7
                     eps = 0.1
                     fx = ((1-eps)**(-2) - 1)**(1/kappa)*ft
                     if fb < fx:
