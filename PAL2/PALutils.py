@@ -19,6 +19,7 @@ import sys,os
 SOLAR2S = sc.G / sc.c**3 * 1.98855e30
 KPC2S = sc.parsec / sc.c * 1e3
 MPC2S = sc.parsec / sc.c * 1e6
+f1yr = 1. / sc.Julian_year
 
 
 def compute_snr_mark6(x, Nvec, Tmat, cf):
@@ -1708,7 +1709,6 @@ def createGWB(psr, Amp, gam, DM=False, noCorr=False, seed=None, turnover=False, 
         w[ll,:] = np.random.randn(Nf) + 1j*np.random.randn(Nf)
 
     # strain amplitude
-    f1yr = 1/3.16e7
     alpha = -0.5 * (gam-3)
     hcf = Amp * (f/f1yr)**(alpha)
     if turnover:
@@ -1837,7 +1837,6 @@ def createGWB_clean(psr, Amp, gam, noCorr=False, seed=None, turnover=False,
     w = np.random.randn(Npulsars, Nf) + 1j*np.random.randn(Npulsasrs, Nf)
 
     # strain amplitude
-    f1yr = 1/3.16e7
     alpha = -0.5 * (gam-3)
     hcf = Amp * (f/f1yr)**(alpha)
     if turnover:

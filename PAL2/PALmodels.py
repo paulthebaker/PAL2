@@ -21,6 +21,8 @@ from PAL2 import PALpsr
 
 import PAL2
 
+from PALutils import f1yr
+
 # In order to keep the dictionary in order
 try:
     from collections import OrderedDict
@@ -40,8 +42,6 @@ This file aims to retain compatibility with the dictionary types used in Rutger 
 Piccard.
 
 """
-
-f1yr = 1./(3600.*24.*365.25)
 
 class PTAmodels(object):
 
