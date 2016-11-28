@@ -44,12 +44,15 @@ conda env create -f environment.yml
 source activate pal2_conda
 ```
 
-Be sure to follow the instructions and activate the Anaconda environment. This will create an Anaconda environment with nearly all of the required dependencies installed except [libstempo](https://github.com/vallis/libstempo). 
+Be sure to follow the instructions and activate the Anaconda environment.
+This will create an Anaconda environment with nearly all of the required dependencies installed except [libstempo](https://github.com/vallis/libstempo). 
 The libstempo package can be installed with
 
-```pip install libstempo --install-option="--with-tempo2=$TEMPO2"```
+```pip install git+https://github.com/vallis/libstempo@master```
 
-if you have your TEMPO2 environment variable set correctly. To finalize the installation do
+The installation will look for a TEMPO2 installation.
+To use a specific install you can use the `--install-option="--with-tempo2=..."` option.
+To finalize the installation do
 
 ```python setup.py install```
 
