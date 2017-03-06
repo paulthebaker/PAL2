@@ -144,7 +144,8 @@ def get_ave_res(model, pars, flags, indicator=None, DM=False):
 
 def get_quad_posteriors(model, chain, selection=None,
                         N=1000, add_det=False, idd=None, 
-                        fixmask=None):
+                        fixmask=None, maxpars=None, 
+                        maxsel=None):
 
     """
     Get posteriors on quadratic parameters and waveform
@@ -160,7 +161,12 @@ def get_quad_posteriors(model, chain, selection=None,
         realizations. Defaults to red noise signal.
     :param fixmask: 
         (optional) Boolean mask for fixed parameters (useful for DMX)
-
+    :param maxpars: 
+        (optional) Include ML params to compute conditional posterior
+        on quadratid parameters
+    :param maxsel: 
+        (optional) Include ML indicator array to compute conditional posterior
+        on quadratid parameters
 
     :return: Posterior samples from quadratic parameters [N x npar]
     :return: Posterior samples of wavform realization [N x ntoa]
@@ -182,13 +188,19 @@ def get_quad_posteriors(model, chain, selection=None,
     
     for ii in range(N):
         
-        indx = np.random.randint(0, M)
-        pars = chain[indx,:]
+        if maxpars is None:
+            indx = np.random.randint(0, M)
+            pars = chain[indx,:]
+        else:
+            pars = maxpars
         
         # index array
-        if selection is not None:
-            sel = selection[indx,:]
-        
+        if maxsel is None:
+            if selection is not None:
+                sel = selection[indx,:]
+        else:
+            sel = maxsel
+
         if model.likfunc == 'mark9':
             model.mark9LogLikelihood(pars, selection=sel)
         elif model.likfunc == 'mark6':
@@ -239,7 +251,8 @@ def get_quad_posteriors(model, chain, selection=None,
 
         if idd is None:
             nf = len(p.Ffreqs) // 2
-            ntmpars = len(p.ptmdescription)
+            #ntmpars = len(p.ptmdescription)
+            ntmpars = p.Mmat_reduced.shape[1]
             idd = np.arange(ntmpars, ntmpars+2*nf)
 
 
@@ -274,8 +287,15 @@ def get_spectrum(model, chain, selection=None, N=1000):
     
     M = chain.shape[0]
     p = model.psr[0]
+    T = (p.toas.max() - p.toas.min())
     nf = len(p.Ffreqs)
+    if model.haveExt:
+        nf += len(p.Fextfreqs)
     psd = np.zeros((N, nf/2))
+
+    freqs = p.Ffreqs[::2]
+    if model.haveExt:
+        freqs = np.concatenate((p.Ffreqs, p.Fextfreqs))[::2]
 
     if selection is None:
         sel = np.array([1]*model.dimensions, dtype=np.bool)
@@ -293,10 +313,43 @@ def get_spectrum(model, chain, selection=None, N=1000):
         model.constructPhiMatrix(pars, incTM=True, incJitter=True, 
                                  incCorrelations=False, selection=sel)
         
-        ntmpars = len(p.ptmdescription)
-        idd = np.arange(ntmpars, ntmpars+2*nf)
+        #ntmpars = len(p.ptmdescription)
+        ntmpars = p.Mmat_reduced.shape[1]
         Phi = 1 / np.diag(model.Phiinv)
-        psd[ii,:] = Phi[ntmpars:ntmpars+nf][::2]
+        psd[ii,:] = Phi[ntmpars:ntmpars+nf][::2] * T / 2 * 1e12
+
+        sys.stdout.write('\r')
+        sys.stdout.write('%g'%(ii/N * 100))
+        sys.stdout.flush()
+        
+    
+    return freqs, np.log10(psd) 
+
+def get_fourier_spectrum(model, qreal, N=1000):
+    """
+    Get posteriors red noise fourier spectrum spectrum
+
+    :param model: PAL2 Model class
+    :param qreal: Nreal x npar array containing individual quadratic posteriors
+    :param N: (optional) Number of posterior draws [default=1000]
+
+    :return: Frequency array
+    :return: Posterior samples of spectrum [N x nfreq]
+    """
+    
+    p = model.psr[0]
+    T = (p.toas.max() - p.toas.min())
+    nf = len(p.Ffreqs)
+    psd = np.zeros((N, nf/2))
+    
+    for ii in range(N):
+
+        ixx = np.random.randint(0, qreal.shape[0])
+        
+        ntmpars = p.Mmat_reduced.shape[1]
+        idd = np.arange(ntmpars, ntmpars+nf)
+        a = qreal[ixx,idd]
+        psd[ii,:] = (a[::2]**2 + a[1::2]**2)*T/2*1e12
 
         sys.stdout.write('\r')
         sys.stdout.write('%g'%(ii/N * 100))
@@ -373,7 +426,8 @@ def make_dm_waveform_realization_plot(ax, psr, qreal, incDM=True, *args, **kwarg
     :param incDM: Boolean whether or not DM is in timing model or in noise model
     """
     dmconst = 2.41e-4
-    ntmpars = len(psr.ptmdescription)
+    #ntmpars = len(psr.ptmdescription)
+    ntmpars = psr.Mmat_reduced.shape[1]
     nf = psr.Fmat.shape[1]
     nfdm = len(psr.Fdmfreqs)
     idd = np.arange(ntmpars+nf,ntmpars+nf+nfdm)
@@ -382,9 +436,9 @@ def make_dm_waveform_realization_plot(ax, psr, qreal, incDM=True, *args, **kwarg
     dmsig = np.zeros((qreal.shape[0], nt))
     for ii in range(qreal.shape[0]):
         if incDM:
-            id1 = list(psr.ptmdescription).index('DM1')
+            id1 = list(psr.newdes).index('DM1')
             dmsig[ii,:] = psr.Ttmat[:,id1] * qreal[ii,id1] * dmconst * psr.freqs**2
-            id2 = list(psr.ptmdescription).index('DM2')
+            id2 = list(psr.newdes).index('DM2')
             dmsig[ii,:] += psr.Ttmat[:,id2] * qreal[ii,id2] * dmconst * psr.freqs**2
             dmsig[ii,:] += np.dot(psr.Fdmmat, qreal[ii,idd])
             dmsig[ii,:] -= dmsig[ii,:].mean()
@@ -405,7 +459,9 @@ def make_dm_waveform_realization_plot(ax, psr, qreal, incDM=True, *args, **kwarg
              lw=1.5, color='k')
 
 
-def make_spectrum_realization_plot(ax, f, psd, sigma=0.68, *args, **kwargs):
+def make_spectrum_realization_plot(ax, f, psd, sigma=0.68, 
+                                   plot_median=True, use_bars=False, 
+                                   *args, **kwargs):
     """
     Make a waveform realization plot of signal vs time with
     uncertantiy region.
@@ -414,6 +470,8 @@ def make_spectrum_realization_plot(ax, f, psd, sigma=0.68, *args, **kwargs):
     :param model: PAL2 Model class
     :param real: Nreal x nf array containing individual spectrum realizations.
     :param sigma: Uncertainty level on waveform
+    :param plot_median: Plot the median spectrum
+    :param use_bars: Use error bars instead of fill_between
     """
     
     nt = len(f) 
@@ -424,19 +482,28 @@ def make_spectrum_realization_plot(ax, f, psd, sigma=0.68, *args, **kwargs):
                                               type='minArea')
     
     #print xlow, xhigh
-    ax.fill_between(f, 10**xlow, 10**xhigh, **kwargs)
-    ax.plot(f, 10**xmed, ls='--', lw=1.5, color='k')
+    if use_bars:
+        ymean = psd.mean(axis=0)
+        ylow = np.log10(10**ymean - 10**xlow)
+        yhigh = np.log10(10**xhigh - 10**ymean)
+        yerr = np.vstack((ylow, yhigh))
+        ax.errorbar(f, 10**ymean, yerr=10**yerr, fmt='o', capsize=0, **kwargs)
+    else:
+        ax.fill_between(f, 10**xlow, 10**xhigh, **kwargs)
+    if plot_median:
+        ax.plot(f, 10**xmed, ls='--', lw=1.5, color='k')
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylim(10**xlow.min()/2, 10**xhigh.max()*2)
-    ax.set_xlim(f.min(), f.max())
+    df = f[1] - f[0]
+    ax.set_xlim(f.min()-df, f.max()+df)
     ax.grid(which='both')
 
 class ChainPP(object):
     
     def __init__(self, chaindir, h5file=None,
                  jsonfile=None, outdir='noise_output',
-                 save=True):
+                 save=True, nreal=1000):
 
         ret = get_mcmc_files(chaindir)
         self.chain, self.pars, self.logp = ret[0], ret[1], ret[2]
@@ -473,6 +540,16 @@ class ChainPP(object):
             
         self.outdir = outdir
         self.save = save
+
+    def get_quadratic_parameters(self, nreal=1000, maxpars=None):
+
+        ret, real, white = get_quad_posteriors(self.model, self.chain, 
+                                               selection=self.indicator, N=nreal, 
+                                               add_det=True, fixmask=None, 
+                                               maxpars=maxpars)
+        return ret, real, white
+
+
         
     def get_ml_values(self, ind=None, mtype='full'):
         
@@ -487,6 +564,9 @@ class ChainPP(object):
                 x[self.pars[i]] = self.chain[np.argmax(self.logp[:,-1]), i]
             elif mtype == 'marg':
                 x[self.pars[i]] = bu.getMax(self.chain[:,i])
+            elif mtype == 'mean':
+                x[self.pars[i]] = self.chain[:,i].mean()
+
             
         return x
         
@@ -583,17 +663,37 @@ class ChainPP(object):
                 plt.savefig(self.outdir + '/tri_{0}.png'.format(ii),
                             dpi=300, bbox_inches='tight')
             
-    def plot_spectrum(self, nreal=1000):
-
+    def plot_spectrum(self, nreal=1000, use_bars=False, plot_median=True, 
+                      color='gray', ax=None):
+        
         f, psd = get_spectrum(self.model, self.chain, selection=self.indicator, N=nreal)
-        ax = plt.subplot(111)
-        make_spectrum_realization_plot(ax, f, psd, sigma=0.68, 
-                                       color='gray', alpha=0.5)
+        if ax is None:
+            ax = plt.subplot(111)
+        make_spectrum_realization_plot(ax, f, psd, sigma=0.68, use_bars=use_bars, 
+                                       plot_median=plot_median, color=color, alpha=0.5)
         ax.set_xlabel(r'Frequency [Hz]')
         ax.set_ylabel(r'Power Spectral Density [s$^2$]')
         if self.save:
             plt.savefig(self.outdir + '/spectrum_{0}.png'.format(self.model.psr[0].name),
                         dpi=300, bbox_inches='tight')
+
+    def plot_fourier_spectrum(self, nreal=1000, maxpars=None, quad=None, 
+                              ax=None, use_bars=False, color='gray'):
+
+        plt.figure()
+        if quad is None:
+            quad, real, white = self.get_quadratic_parameters(
+                nreal=nreal, maxpars=maxpars)
+        f, psd = get_fourier_spectrum(self.model, quad, N=nreal)
+        if ax is None:
+            ax = plt.subplot(111)
+        make_spectrum_realization_plot(ax, f, psd, sigma=0.68, color=color, 
+                                       alpha=0.5, use_bars=use_bars)
+        ax.set_xlabel(r'Frequency [Hz]')
+        ax.set_ylabel(r'Power Spectral Density [s$^2$]')
+        if self.save:
+            plt.savefig(self.outdir + '/fourier_spectrum_{0}.png'.format(
+                self.model.psr[0].name), dpi=300, bbox_inches='tight')
 
 
     def plot_residuals(self, mtype='full', nreal=1000):
@@ -605,7 +705,8 @@ class ChainPP(object):
         p0 = x.values()
 
         for ct, p in enumerate(self.model.psr):
-            ntmpars = len(p.ptmdescription)
+            #ntmpars = len(p.ptmdescription)
+            ntmpars = p.Mmat_reduced.shape[1]
             nf = self.model.npf[ct]
             nfdm = self.model.npfdm[ct]
             idd = np.arange(ntmpars,ntmpars+nf)

@@ -71,9 +71,12 @@ def get_snr_prior(model, snr0):
                                                         nfref:(nfref+nf)], 
                                              p.Qamp, p.Uinds)
         else:
-            snr += innerProduct_rr(s, s, p.Nvec, p.Ttmat,
-                                            model.Sigma[nfref:(nfref+nf),
-                                                        nfref:(nfref+nf)])
+            try:
+                snr += innerProduct_rr(s, s, p.Nvec, p.Ttmat,
+                                       model.Sigma[nfref:(nfref+nf),
+                                                   nfref:(nfref+nf)])
+            except np.linalg.LinAlgError:
+                return -np.inf
 
         nfref += nf
 
@@ -867,7 +870,7 @@ def createGmatrix(designmatrix):
 
     return u[:,-(npts-nfit):]
 
-def createQSDdesignmatrix(toas):
+def createQSDdesignmatrix(toas, norm=True):
     """
     Return designmatrix for QSD model
 
@@ -880,7 +883,7 @@ def createQSDdesignmatrix(toas):
     designmatrix = np.zeros((len(toas), 3))
 
     for ii in range(3):
-        designmatrix[:,ii] = toas**(ii)
+        designmatrix[:,ii] = (toas/toas.mean())**(ii)
 
     return designmatrix
 
@@ -1020,6 +1023,36 @@ def exploderMatrixNoSingles(times, flags, dt=10):
         
     return avetoas, aveflags, U
 
+def exploderMatrixIntegration(times, flags, tobs, dt=10):
+    isort = np.argsort(times)
+    
+    bucket_ref = [[times[isort[0]], flags[isort[0]]]]
+    bucket_ind = [[isort[0]]]
+        
+    for i in isort[1:]:
+        if times[i] - bucket_ref[-1][0] < dt and flags[i] == bucket_ref[-1][1]:
+            if 'ABPP-L' in flags[i]:
+                bucket_ref.append([times[i], flags[i]])
+                bucket_ind.append([i])
+            else:
+                bucket_ind[-1].append(i)
+        else:
+            bucket_ref.append([times[i], flags[i]])
+            bucket_ind.append([i])
+        
+
+    # find only epochs with more than 1 TOA
+    bucket_ind2 = [ind for ind in bucket_ind if len(ind) > 2]
+    
+    avetoas = np.array([np.mean(times[l]) for l in bucket_ind2],'d')
+    aveflags = np.array([flags[l[0]] for l in bucket_ind2])
+
+    
+    U = np.zeros((len(times),len(bucket_ind2)),'d')
+    for i,l in enumerate(bucket_ind2):
+        U[l,i] = np.sqrt(1200./tobs[l])
+        
+    return avetoas, aveflags, U
     
 
 def exploderMatrix_slow(toas, freqs=None, dt=1200, flags=None):
@@ -1452,7 +1485,7 @@ def computeORF(psr):
     # begin loop over all pulsar pairs and calculate ORF
     k = 0
     npsr = len(psr)
-    ORF = np.zeros(npsr*(npsr-1)/2.)
+    ORF = np.zeros(int(npsr*(npsr-1)/2.))
     phati = np.zeros(3)
     phatj = np.zeros(3)
     for ll in xrange(0, npsr):

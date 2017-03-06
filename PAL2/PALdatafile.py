@@ -215,7 +215,7 @@ class DataFile(object):
                         pulsar not to exist, and throws an exception otherwise.
     """
     def addTempoPulsar(self, parfile, timfile, iterations=1, 
-                       mode='overwrite', maxobs=30000):
+                       mode='overwrite', maxobs=30000, ephem=None):
         # Check whether the two files exist
         if not os.path.isfile(parfile) or not os.path.isfile(timfile):
             raise IOError, "Cannot find parfile (%s) or timfile (%s)!" % (parfile, timfile)
@@ -247,9 +247,10 @@ class DataFile(object):
 
         # Load pulsar data from the libstempo library
         try:
-            t2pulsar = t2.tempopulsar(relparfile, reltimfile, maxobs=maxobs)
+            t2pulsar = t2.tempopulsar(relparfile, reltimfile, 
+                                      maxobs=maxobs, ephem=ephem)
         except TypeError:
-            t2pulsar = t2.tempopulsar(relparfile, reltimfile)
+            t2pulsar = t2.tempopulsar(relparfile, reltimfile, ephem=ephem)
         except:
             print("Dir: ", dirname, savedir, parfile, timfile)
             os.chdir(savedir)
@@ -390,16 +391,17 @@ class DataFile(object):
 
             self.writeData(flagGroup, "efacequad", efacequad, overwrite=overwrite)
 
-        if not 'bw' in flagGroup:
+        if not 'bwflags' in flagGroup:
             nobs = len(t2pulsar.toas())
             if 'bw' in flagGroup:
                 #print 'Including band width flags for PSR {0}'.format(t2pulsar.name)
                 bw = flagGroup['bw']
+                #bw[bw==''] = 4.0
             else:
                 #print 'No bandwidth flags for PSR {0}'.format(t2pulsar.name)
                 bw = np.ones(nobs) * 4
 
-            self.writeData(flagGroup, "bw", bw, overwrite=overwrite)
+            self.writeData(flagGroup, "bwflags", bw, overwrite=overwrite)
         
         if not "efacequad_freq" in flagGroup:
             efacequad_freq = []
@@ -530,7 +532,7 @@ class DataFile(object):
           kind of inefficient
     """
     
-    def readPulsar(self, psr, psrname):
+    def readPulsar(self, psr, psrname, start_time=None, end_time=None):
         psr.name = str(psrname)
 
         # Read the content of the par/tim files in a string
@@ -542,8 +544,11 @@ class DataFile(object):
         psr.ptmpars = np.array(self.getData(psrname, 'tmp_valpost'))
         psr.ptmparerrs = np.array(self.getData(psrname, 'tmp_errpost'))
         psr.flags = np.array(map(str, self.getData(psrname, 'efacequad_freq', 'Flags')))
-        psr.tobsflags = map(float, self.getData(psrname, 'tobs_all', 'Flags'))
-        psr.bwflags = np.array(map(float, self.getData(psrname, 'bw', 'Flags')))
+        psr.tobsflags = np.array(map(float, self.getData(psrname, 'tobs_all', 'Flags')))
+        try:
+            psr.bwflags = np.array(map(float, self.getData(psrname, 'bwflags', 'Flags')))
+        except IOError:
+            psr.bwflags = np.ones(len(psr.flags)) * 4.0
 
         psr.setptmdescription = map(str, self.getData(psrname, 'set_name'))
         psr.setptmpars = np.array(self.getData(psrname, 'set_valpost'))
@@ -613,11 +618,46 @@ class DataFile(object):
         psr.detresiduals = np.array(self.getData(psrname, 'postfitRes'))
         psr.freqs = np.array(self.getData(psrname, 'freq'))
         psr.Mmat = np.array(self.getData(psrname, 'designmatrix'))
+
+        # filter data based on start and end times
+        if start_time is not None or end_time is not None:
+            if start_time is None:
+                start_time = psr.toas.min()/86400
+            if end_time is None:
+                end_time = psr.toas.max()/86400
+            print 'Filtering TOAs between {0} and {1} for PSR {2}'.format(
+                start_time, end_time, psr.name)
+            ind = np.logical_and(psr.toas/86400>=start_time, psr.toas/86400<=end_time)
+            psr.toas = psr.toas[ind]
+            psr.toaerrs = psr.toaerrs[ind]
+            psr.residuals = psr.residuals[ind]
+            psr.detresiduals = psr.detresiduals[ind]
+            psr.freqs = psr.freqs[ind]
+            psr.flags = psr.flags[ind]
+            psr.fflags = psr.fflags[ind]
+            psr.tobsflags = psr.tobsflags[ind]
+            psr.bwflags = psr.bwflags[ind]
+
+            # design matrix
+            print 'Design Matrix Shape pre-filter:', psr.Mmat.shape
+            psr.Mmat = psr.Mmat[ind,:]
+            dind = psr.Mmat.sum(axis=0) == 0
+            psr.Mmat = psr.Mmat[:,~dind]
+            print 'Design Matrix Shape post-filter:', psr.Mmat.shape
+
+            # fitted parameters
+            psr.ptmdescription = list(np.array(psr.ptmdescription)[~dind])
+            psr.ptmpars = psr.ptmpars[~dind]
+            psr.ptmparerrs = psr.ptmparerrs[~dind]
+
         
         # get number of epochs (i.e 1 s window)
-        (avetoas, aveflags, Umat) = PALutils.exploderMatrixNoSingles(
-            psr.toas, np.array(psr.flags), dt=1)
-        psr.nepoch = len(avetoas)
+        try:
+            (avetoas, aveflags, Umat) = PALutils.exploderMatrixNoSingles(
+                psr.toas, np.array(psr.flags), dt=1)
+            psr.nepoch = len(avetoas)
+        except IndexError:
+            pass
 
 
         

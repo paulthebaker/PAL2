@@ -135,10 +135,13 @@ class Pulsar(object):
 
     @param h5df:        The DataFile object we are reading from
     @param psrname:     Name of the Pulsar to be read from the HDF5 file
+    @param start_time:  Start time for TOAs
+    @param end_time:    End time for TOAs
     """
 
-    def readFromH5(self, h5df, psrname):
-        h5df.readPulsar(self, psrname)
+    def readFromH5(self, h5df, psrname, start_time=None, end_time=None):
+        h5df.readPulsar(self, psrname, start_time=start_time, 
+                        end_time=end_time)
 
     """
     Initialise the libstempo object for use in nonlinear timing model modelling.
@@ -744,7 +747,7 @@ class Pulsar(object):
                                 incRedBand=False, incDMBand=False, incRedGroup=False,
                                 redGroups=None, incRedExt=False, nfredExt=20,
                                 redExtFx=None, incGP=False, haveScat=False, 
-                                numScatFreqs=0):
+                                numScatFreqs=0, incEphemError=False, ephemModel=None):
 
 
         # For creating the auxiliaries it does not really matter: we are now
@@ -949,6 +952,44 @@ class Pulsar(object):
 
             self.DF = np.hstack(Ftemp)
 
+        if incEphemError:
+            # pulsar unit vector
+            phat = np.array([np.cos(self.phi)*np.sin(self.theta), 
+                             np.sin(self.phi)*np.sin(self.theta),
+                             np.cos(self.theta)])
+
+            if ephemModel in ['jupsat', 'objects']:
+                if ephemModel in ['jupsat']:
+                    ss_per = [29.45, 11.86]
+                elif ephemModel in ['objects']:
+                    ss_per = [11.86, 5.557, 4.6, 3.629, 1.881, 0.886]
+
+                Fs = []
+                for mm, per in enumerate(ss_per):
+                    freq = np.array([1 / per / 3.16e7])
+
+                    Ftemp = PALutils.singlefourierdesignmatrix(self.toas, freq) 
+                    Fx = Ftemp * phat[0]
+                    Fy = Ftemp * phat[1]
+                    Fz = Ftemp * phat[2]
+
+                    Fs.append(np.hstack((Fx, Fy, Fz)))
+
+            elif ephemModel in ['matern']:
+                self.ephemFreqs, F = rr.get_rr_rep(self.toas, Tmax, 
+                                                   1./5./Tmax, 11, 11, 
+                                                   simpson=True)
+                F *= np.sqrt(Tmax)
+                Fx = F * phat[0]
+                Fy = F * phat[1]
+                Fz = F * phat[2]
+                Fs = [Fx, Fy, Fz]
+
+            # append to F-matrix
+            Fs.insert(0, self.Fmat)
+            self.Fmat = np.hstack(tuple(Fs))
+
+
         # create total F matrix if both red and DM
         if ndmf > 0 and nf > 0:
             self.Ftot = np.concatenate((self.Fmat, self.DF), axis=1)
@@ -1064,16 +1105,19 @@ class Pulsar(object):
             self.Tmat = np.concatenate((Mm, self.Ftot), axis=1)
             if incJitter:
                 self.avetoas, self.aveflags, U = \
-                    PALutils.exploderMatrixNoSingles(
+                    PALutils.exploderMatrixIntegration(
                         self.toas, np.array(self.flags),
-                        dt=1)
+                        np.array(self.tobsflags), dt=1)
+                    #PALutils.exploderMatrixNoSingles(
+                    #    self.toas, np.array(self.flags),
+                    #    dt=1)
                 self.Umat = U
                 self.Tmat = np.concatenate((self.Tmat, U), axis=1)
 
             if haveScat:
                 Fscat, self.Fscatfreqs =  PALutils.createfourierdesignmatrix(
                     self.toas, numScatFreqs, freq=True, Tspan=self.Tmax)
-                Svec = (self.freqs/1400)**(-4) #* (4/self.bwflags)**(-4)
+                Svec = (self.freqs/1400)**(-5) * (self.bwflags/4.0)
                 Tref = self.toas.min()
                 Fscatmat = (Svec * Fscat.T).T
                 Mscatmat = np.zeros((len(self.toas), 3))

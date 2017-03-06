@@ -83,6 +83,12 @@ parser.add_argument('--ndmf', dest='ndmfreqs', action='store', type=int, default
 parser.add_argument('--DMAmpPrior', dest='DMAmpPrior', action='store', type=str, \
                     default='log', help='prior on DM Amplitude [uniform, log]')
 
+parser.add_argument('--incEphemError', dest='incEphemError', action='store_true',
+                    default=False, help='Include Ephemeris error variations [default=False]')
+parser.add_argument('--ephemModel', dest='ephemModel', action='store', type=str,
+                    default=False, help='Model for ephemeris error [default=jupsat]')
+
+
 parser.add_argument('--incScat', dest='incScat', action='store_true',default=False,
                    help='Include Scattering variations [default=False]')
 parser.add_argument('--scatModel', dest='scatModel', action='store', type=str, default='powerlaw',
@@ -110,14 +116,19 @@ parser.add_argument('--incDMBand', dest='incDMBand', action='store_true',default
 
 parser.add_argument('--incGWB', dest='incGWB', action='store_true',default=False,
                    help='include GWB? [default=False]')
+parser.add_argument('--ngwf', dest='ngwf', action='store',default=None, type=int,
+                   help='Number of gwfreqs')
 parser.add_argument('--gwbModel', dest='gwbModel', action='store', type=str, default='powerlaw',
                    help='GWB model [powerlaw, spectrum, turnover]')
+
 parser.add_argument('--fixKappa', dest='fixKappa', action='store', type=float,
                     default=0, help='fix turnover kappa to user value [default=False]')
 parser.add_argument('--fixSi', dest='fixSi', action='store', type=float, default=0, \
                     help='Fix GWB spectral index to user defined value [default=False]')
 parser.add_argument('--noCorrelations', dest='noCorrelations', action='store_true', \
                     default=False, help='Do not in include GWB correlations [default=False]')
+parser.add_argument('--sparse', dest='sparse', action='store_true', \
+                    default=False, help='Use spare matrices for cholesky [default=False]')
 parser.add_argument('--GWBAmpPrior', dest='GWBAmpPrior', action='store', type=str, \
                     default='log', 
                     help='prior on GWB Amplitude [uniform, log, sesana, mcwilliams] [default=log]')
@@ -212,9 +223,9 @@ parser.add_argument('--nSysWavelets', dest='nSysWavelets', action='store', type=
 parser.add_argument('--sysWaveletModel', dest='sysWaveletModel', action='store', type=str, \
                     default='standard', help='system Wavelet model [default=standard]')
 
-parser.add_argument('--incChromaticWavelet', dest='incChromaticWavelet', action='store_true', \
+parser.add_argument('--incDMWavelet', dest='incDMWavelet', action='store_true', \
                     default=False, help='Include chromatic noise wavelet signal in run [default=False]')
-parser.add_argument('--nChromaticWavelets', dest='nChromaticWavelets', action='store', 
+parser.add_argument('--nDMWavelets', dest='nDMWavelets', action='store', 
                     type=int, default=1, help='Number of chromatic noise wavelets(default=1)')
 parser.add_argument('--fixcBeta', dest='fixcBeta', action='store', type=float,
                     default=0, help='fix chromatic wavelet spectral index to user value')
@@ -269,6 +280,8 @@ parser.add_argument('--zerologlike', dest='zerologlike', action='store_true', de
                     help='Zero log likelihood to test prior and jump proposals')
 parser.add_argument('--neff', dest='neff', type=int, action='store', \
                     default=1000, help='Number of effective samples [default=1000]')
+parser.add_argument('--isave', dest='isave', type=int, action='store', \
+                    default=1000, help='Number of samples between saves [default=1000]')
 parser.add_argument('--resume', dest='resume', action='store_true', \
                     default=False, help='resume from previous run?')
 parser.add_argument('--writeHotChains', dest='writeHotChains', action='store_true', \
@@ -292,6 +305,11 @@ parser.add_argument('--Tmin', dest='Tmin', type=float, action='store', \
 parser.add_argument('--Tmax', dest='Tmax', type=float, action='store', \
                      default=1, help='Max temperature for parallel tempering.')
 
+parser.add_argument('--start_time', dest='start_time', type=float, action='store', \
+                     default=None, help='Start time for TOAs [MJD]')
+parser.add_argument('--end_time', dest='end_time', type=float, action='store', \
+                     default=None, help='End time for TOAs [MJD]')
+
 # parse arguments
 args = parser.parse_args()
 
@@ -311,14 +329,19 @@ if not os.path.exists(args.outDir):
     except OSError:
         pass
 
+
 # open file
 incGWB = args.incGWB
 if args.pname[0] != 'all':
-    model = PALmodels.PTAmodels(args.h5file, pulsars=args.pname)
+    model = PALmodels.PTAmodels(args.h5file, pulsars=args.pname, 
+                                start_time=args.start_time, 
+                                end_time=args.end_time)
 elif args.pname[0] == 'all':
     print 'Using all pulsars'
     pulsars = 'all'
-    model = PALmodels.PTAmodels(args.h5file, pulsars=pulsars)
+    model = PALmodels.PTAmodels(args.h5file, pulsars=pulsars,
+                                start_time=args.start_time, 
+                                end_time=args.end_time)
 
 
 # model options
@@ -383,6 +406,8 @@ if args.jsonfile is None:
         incDM=args.incDM, dmModel=args.dmModel, 
         incDMEvent=args.incDMshapelet, dmEventModel=dmEventModel, 
         ndmEventCoeffs=args.nshape, 
+        incEphemError=args.incEphemError,
+        ephemErrorModel = args.ephemModel,
         incDMX=args.incDMX, 
         incORF=args.incORF, 
         incBWM=args.incBWM, BWMmodel=args.BWMmodel,
@@ -393,8 +418,8 @@ if args.jsonfile is None:
         waveletModel=args.waveletModel,
         incSysWavelet=args.incSysWavelet, nSysWavelets=args.nSysWavelets,
         sysWaveletModel=args.sysWaveletModel,
-        incChromaticWavelet=args.incChromaticWavelet, 
-        nChromaticWavelets=args.nChromaticWavelets,
+        incDMWavelet=args.incDMWavelet, 
+        nDMWavelets=args.nDMWavelets,
         incGWBAni=args.incGWBAni, lmax=args.lmax,
         clmPrior=args.clmPrior,
         incDMXKernel=incDMXKernel, DMXKernelModel=DMXKernelModel, 
@@ -425,12 +450,12 @@ if args.jsonfile is None:
         incSingleFreqDMNoise=args.incSingleDM, numSingleFreqDMLines=1, 
         DMAmpPrior=args.DMAmpPrior, 
         incGWB=incGWB, nfreqs=args.nfreqs, ndmfreqs=args.ndmfreqs, 
+        ngwfreqs=args.ngwf,
         incGWBSingle=args.incGWBSingle, gwbSingleModel=args.gwbSingleModel,
         gwbModel=args.gwbModel, 
         Tmax = args.Tspan,
         compression=args.compression, 
         likfunc=likfunc)
-
 
     # fix spectral index
     if args.fixSi:
@@ -522,6 +547,10 @@ if args.jsonfile is None:
                                                      sig['flagvalue'],
                                                      sig['pstart'])
     
+    #for sig in fullmodel['signals']:
+    #    if sig['stype'] == 'jitter_equad':
+    #        if sig['flagvalue'] == 'J1741+1351-430_ASP':
+    #            sig['bvary'][0] = False
 
 
     if args.fixNoise:
@@ -636,7 +665,9 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
         print 'Running model with GWB correlations'
     if args.incJitterEquad and np.any([args.mark6, args.Tmatrix, args.mark10]):
         loglkwargs['incJitter'] = True
-
+    if args.sparse and args.mark9:
+        print 'Using sparse matrix representation of Sigma'
+        loglkwargs['sparse'] = True
    
     # get initial parameters for MCMC
     inRange = False
@@ -706,7 +737,7 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
             [ind.append(id) for id in ids if len(id) > 0]
         
         if args.incJitterEquad:
-            ids = model.get_parameter_indices('jitter_equad', corr='single', split=False)
+            ids = model.get_parameter_indices('jitter_equad', corr='single', split=True)
             [ind.append(id) for id in ids if len(id) > 0]
         
         
@@ -750,8 +781,8 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
             ids = model.get_parameter_indices('wavelet', corr='single', split=True)
             [ind.append(id) for id in ids if id != []]
         
-        if args.incChromaticWavelet:
-            ids = model.get_parameter_indices('chrowavelet', corr='single', split=True)
+        if args.incDMWavelet:
+            ids = model.get_parameter_indices('dmwavelet', corr='single', split=True)
             [ind.append(id) for id in ids]
         
         if args.incSysWavelet:
@@ -773,6 +804,11 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
             if args.gwbModel == 'turnover':
                 ids = model.get_parameter_indices('turnover', corr='gr', split=False)
                 [ind.append(id) for id in ids]
+
+        ##### Ephemeris Error #####
+        if args.incEphemError:
+            ids = model.get_parameter_indices('ephemeris', corr='single', split=False)
+            [ind.append(id) for id in ids]
         
         ##### GWB Point Source #####
         if args.incGWBSingle:
@@ -866,6 +902,8 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
                 sampler.addProposalToCycle(model.drawFromsGWBPrior, 10)
         if args.incRed and args.redModel=='powerlaw':
             sampler.addProposalToCycle(model.drawFromRedNoisePrior, 5)
+        if args.incRed and args.redModel=='broken':
+            sampler.addProposalToCycle(model.drawFromRedNoiseBrokenPrior, 5)
         if args.incRedBand and args.redModel=='powerlaw':
             sampler.addProposalToCycle(model.drawFromRedNoiseBandPrior, 5)
         if args.incDMBand and args.dmModel=='powerlaw':
@@ -885,6 +923,8 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
         if args.incTimingModel:
             sampler.addProposalToCycle(model.drawFromTMfisherMatrix, 40)
             #sampler.addProposalToCycle(model.drawFromTMPrior, 5)
+        if args.incEphemError:
+            sampler.addProposalToCycle(model.drawFromEphemErrorPrior, 5)
         #if args.incBWM:
         #    sampler.addProposalToCycle(model.drawFromBWMPrior, 10)
 
@@ -919,7 +959,7 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
         sampler.sample(p0, args.niter, covUpdate=1000, AMweight=15, SCAMweight=30, \
                        DEweight=50, neff=args.neff, KDEweight=0, Tmin=args.Tmin,
                        Tmax=args.Tmax, writeHotChains=args.writeHotChains,
-                      hotChain=args.hotChain, thin=args.thin)
+                      hotChain=args.hotChain, thin=args.thin, isave=args.isave)
 
     if args.sampler == 'polychord':
         print 'Using PolyChord Sampler'
@@ -970,8 +1010,16 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
 
             def myprior(cube, ndim, nparams):
 
-                for ii in range(ndim):
-                    cube[ii] = model.pmin[ii] + cube[ii] * (model.pmax[ii]-model.pmin[ii])
+                for ss, sig in enumerate(model.ptasignals):
+
+                    # short hand
+                    ii = sig['parindex']
+
+                    if sig['prior'] == 'gaussian':
+                        m, sigma = sig['mu'], sig['sigma']
+                        cube[ii] = m + s*np.sqrt(2) * ss.erfcinv(2*(1-cube[ii]))
+                    else:
+                        cube[ii] = model.pmin[ii] + cube[ii] * (model.pmax[ii]-model.pmin[ii])
         
         
         # mark1 loglike
@@ -997,19 +1045,23 @@ if args.sampler == 'mcmc' or args.sampler == 'minimize' or args.sampler=='multin
 
             def myprior(cube, ndim, nparams):
 
-                for ii in range(ndim):
-                    if args.GWBAmpPrior == 'sesana' and par_out[ii] == 'GWB-Amplitude':
-                        m = -15
-                        s = 0.22
-                        cube[ii] = m + s*np.sqrt(2) * ss.erfcinv(2*(1-cube[ii]))
-                    if args.GWBAmpPrior == 'mcwilliams' and par_out[ii] == 'GWB-Amplitude':
-                        m = np.log10(4.1e-15)
-                        s = 0.26
-                        cube[ii] = m + s*np.sqrt(2) * ss.erfcinv(2*(1-cube[ii]))
-                    else:
-                        cube[ii] = model.pmin[ii] + cube[ii] * (model.pmax[ii]-model.pmin[ii])
+                for sct, sig in enumerate(model.ptasignals):
 
-                    # number of live points
+                    # short hand
+                    parind = sig['parindex']
+                    npars = sig['npars']
+
+                    if npars:
+                        for ct, ii in enumerate(range(parind, parind+npars)):
+                            if sig['prior'][ct] == 'gaussian':
+                                m, s = sig['mu'][ct], sig['sigma'][ct]
+                                cube[ii] = m + s*np.sqrt(2) * ss.erfcinv(2*(1-cube[ii]))
+                            else:
+                                cube[ii] = model.pmin[ii] + cube[ii] * \
+                                        (model.pmax[ii]-model.pmin[ii])
+
+
+        # number of live points
         nlive = 2000
         n_params = ndim
 
